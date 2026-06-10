@@ -1,0 +1,20 @@
+{
+  "name": "payment-widget",
+  "version": "0.1.0",
+  "description": "Embeddable Money-In payment UI widget for card and ACH, with network-spec validation, ACH micro-deposit verification, and HTTPS/TLS enforcement.",
+  "type": "module",
+  "main": "src/payment-widget.js",
+  "exports": {
+    ".": "./src/payment-widget.js",
+    "./validators": "./src/validators.js",
+    "./ach": "./src/ach-verification.js",
+    "./security": "./src/security.js"
+  },
+  "files": ["src", "README.md"],
+  "scripts": {
+    "test": "node --test test/validators.test.mjs",
+    "demo": "node --version >/dev/null && python3 -m http.server 8080"
+  },
+  "keywords": ["payment", "credit-card", "ach", "widget", "web-component", "tls", "pci"],
+  "license": "MIT"
+}

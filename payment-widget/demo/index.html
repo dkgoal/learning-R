@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!--
+    These are the CSP / HSTS headers your *server* should send. They are shown
+    here as <meta> for the static demo, but several (e.g. HSTS) only take effect
+    as real HTTP response headers. See src/security.js -> RECOMMENDED_SECURITY_HEADERS.
+  -->
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests" />
+  <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+  <title>Payment Widget — Demo</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 0; background: #f3f4f6; color: #111827; }
+    .wrap { max-width: 880px; margin: 0 auto; padding: 32px 20px 64px; }
+    h1 { font-size: 1.4rem; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items: start; }
+    @media (max-width: 760px) { .grid { grid-template-columns: 1fr; } }
+    .panel { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 18px; }
+    pre { background: #0b1021; color: #d6e2ff; padding: 12px; border-radius: 8px; overflow: auto;
+          font-size: .78rem; max-height: 320px; }
+    h2 { font-size: 1rem; margin-top: 0; }
+    label { font-size: .8rem; display: block; margin: 8px 0 4px; color: #4b5563; }
+    input { width: 100%; padding: 8px; border: 1px solid #d1d5db; border-radius: 6px; box-sizing: border-box; }
+    button.demo { margin-top: 10px; padding: 8px 14px; border: 0; border-radius: 6px;
+                  background: #111827; color: #fff; cursor: pointer; }
+    .hint { font-size: .76rem; color: #6b7280; }
+    code { background: #eef2ff; padding: 1px 5px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>💳 Payment Widget</h1>
+    <p class="hint">
+      A drop-in <code>&lt;payment-widget&gt;</code> for Money-In via card &amp; ACH.
+      Test cards: <code>4242 4242 4242 4242</code> (Visa),
+      <code>3782 822463 10005</code> (Amex, 4-digit CVV).
+      Test routing: <code>011000015</code>.
+    </p>
+
+    <div class="grid">
+      <div>
+        <payment-widget
+          amount="49.99"
+          currency="USD"
+          methods="card,ach"
+          title="Complete your purchase"></payment-widget>
+      </div>
+
+      <div class="panel">
+        <h2>Event log</h2>
+        <pre id="log">Interact with the widget…</pre>
+
+        <h2 style="margin-top:18px">ACH micro-deposit verification</h2>
+        <p class="hint">
+          Simulates the two-step ownership check from
+          <code>ach-verification.js</code> entirely in the browser.
+        </p>
+        <button class="demo" id="ach-initiate">1 · Initiate (send micro-deposits)</button>
+        <div id="ach-step2" style="display:none">
+          <label>Deposit 1 (cents)</label>
+          <input id="amt1" inputmode="numeric" placeholder="e.g. 7" />
+          <label>Deposit 2 (cents)</label>
+          <input id="amt2" inputmode="numeric" placeholder="e.g. 21" />
+          <button class="demo" id="ach-confirm">2 · Confirm amounts</button>
+          <p class="hint" id="ach-cheat"></p>
+        </div>
+        <pre id="ach-log" style="margin-top:10px">No verification started.</pre>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import '../src/payment-widget.js';
+    import { AchVerifier, createInMemoryBackend, ACH_STATUS } from '../src/ach-verification.js';
+
+    const log = document.getElementById('log');
+    const write = (label, detail) => {
+      const safe = JSON.parse(JSON.stringify(detail || {}, (k, v) => {
+        // Redact sensitive values in the visible log.
+        if (/card(Number)?|cvv|account(Number)?|routing/i.test(k) && typeof v === 'string') {
+          const d = v.replace(/\D/g, '');
+          return d.length > 4 ? '••••' + d.slice(-4) : '••••';
+        }
+        return v;
+      }));
+      log.textContent = `[${label}] ` + JSON.stringify(safe, null, 2) + '\n\n' + log.textContent;
+    };
+
+    const widget = document.querySelector('payment-widget');
+    ['payment:ready', 'payment:change', 'payment:invalid', 'payment:submit', 'payment:error', 'payment:success']
+      .forEach((evt) => widget.addEventListener(evt, (e) => write(evt, e.detail)));
+
+    // Intercept submit so the demo doesn't actually POST anywhere.
+    widget.addEventListener('payment:submit', (e) => {
+      e.preventDefault();
+      write('handled', { note: 'Host intercepted submit; would tokenize & charge here.', method: e.detail.method });
+    });
+
+    // --- ACH verification demo ---------------------------------------------
+    const verifier = new AchVerifier({ backend: createInMemoryBackend() });
+    let currentId = null;
+    const achLog = document.getElementById('ach-log');
+    const writeAch = (msg) => { achLog.textContent = msg + '\n\n' + achLog.textContent; };
+
+    document.getElementById('ach-initiate').addEventListener('click', async () => {
+      try {
+        const res = await verifier.initiate({
+          routingNumber: '011000015',
+          accountNumber: '000123456789',
+          accountType: 'checking',
+          accountHolder: 'Ada Lovelace',
+        });
+        currentId = res.id;
+        document.getElementById('ach-step2').style.display = 'block';
+        writeAch(`Initiated ${res.id}: ${res.depositCount} micro-deposits sent. Status=${res.status}`);
+
+        // For the demo only, reveal the expected amounts so you can "confirm".
+        const rec = await verifier.backend.getVerification(res.id);
+        document.getElementById('ach-cheat').textContent =
+          `(Demo hint — the deposits were: ${rec.expectedAmounts.join('¢ and ')}¢)`;
+      } catch (err) {
+        writeAch('Initiate failed: ' + err.message + (err.fieldErrors ? ' ' + JSON.stringify(err.fieldErrors) : ''));
+      }
+    });
+
+    document.getElementById('ach-confirm').addEventListener('click', async () => {
+      if (!currentId) return;
+      const a1 = parseInt(document.getElementById('amt1').value, 10);
+      const a2 = parseInt(document.getElementById('amt2').value, 10);
+      const res = await verifier.confirm(currentId, [a1, a2]);
+      if (res.status === ACH_STATUS.VERIFIED) writeAch('✅ Account VERIFIED — safe to debit.');
+      else if (res.status === ACH_STATUS.FAILED) writeAch('❌ Verification FAILED — too many attempts.');
+      else writeAch(`Incorrect. Attempts remaining: ${res.attemptsRemaining}`);
+    });
+  </script>
+</body>
+</html>

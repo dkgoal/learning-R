@@ -1,0 +1,13 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+
+# Local data cache (SQLite + parquet). Regenerate with `seed` or `refresh`.
+.cache/
+*.db
+*.db-wal
+*.db-shm

@@ -1,0 +1,102 @@
+# Guru Stock Screener — configuration
+#
+# Everything here is tunable. The app reads this file on startup and can also
+# write edits back from the Settings UI. Thresholds are the "approve or edit"
+# part of the requirements spec (§6.1). Defaults below adopt the spec's
+# recommended values and the default answers to the open questions (§10).
+
+app:
+  name: "Guru Stock Screener"
+  disclaimer: "Personal use only. Not investment advice. Data may be stale, incomplete, or wrong."
+  # SEC requires a descriptive User-Agent with contact info for its APIs.
+  # Put your own name + email here before doing a live refresh.
+  sec_user_agent: "GuruScreener/0.1 (personal use; set-your-email@example.com)"
+
+# ---------------------------------------------------------------------------
+# Universe (spec §4). Open-question defaults:
+#   ADRs: INCLUDE (flagged).  Liquidity floor: $50M cap / $500K median $-volume.
+# ---------------------------------------------------------------------------
+universe:
+  exchanges: ["NYSE", "Nasdaq", "NYSE American"]
+  min_market_cap: 50_000_000        # $50M
+  min_median_dollar_volume: 500_000  # $500K median daily dollar volume
+  include_adrs: true                 # default: include, flagged in results
+  # Screens that require sector carve-outs declare them per-screen below.
+
+# ---------------------------------------------------------------------------
+# Data adapters (spec §5). Providers are swappable; order = fallback order.
+# ---------------------------------------------------------------------------
+data:
+  cache_dir: ".cache"            # SQLite + parquet live here
+  price_provider_order: ["stooq", "yfinance"]
+  fundamentals_provider: "sec_edgar"
+  holdings_provider: "sec_edgar"
+  # Cache TTLs (days). On-demand refresh ignores these.
+  ttl:
+    prices_days: 1
+    fundamentals_days: 90
+    holdings_days: 90
+  # Politeness (SEC fair-use).
+  sec_rate_limit_per_sec: 8
+
+# ---------------------------------------------------------------------------
+# Philosophy screen thresholds (spec §6.1). Tune freely.
+# ---------------------------------------------------------------------------
+screens:
+  graham:
+    enabled: true
+    min_revenue: 500_000_000
+    min_current_ratio: 2.0
+    ltdebt_le_working_capital: true
+    positive_eps_years: 10
+    min_cumulative_eps_growth_10y: 0.33
+    max_pe: 15.0
+    max_pb: 1.5
+    max_graham_ratio: 22.5          # P/E * P/B
+    net_net_variant: false           # price < NCAV
+
+  buffett:
+    enabled: true
+    min_roe: 0.15
+    roe_consistency_years: 5
+    min_interest_coverage: 5.0
+    max_debt_to_equity: 1.0
+    require_margin_stability: true
+    min_fcf_yield: 0.0               # positive FCF yield
+    require_flat_or_declining_shares: true
+
+  lynch:
+    enabled: true
+    max_peg: 1.0
+    fast_grower_low: 0.15
+    fast_grower_high: 0.30
+    too_hot_growth: 0.50             # flag, don't hard-fail
+    max_debt_to_equity: 1.0
+    require_positive_fcf: true
+
+  greenblatt:                        # Magic Formula
+    enabled: true
+    exclude_sectors: ["Financials", "Utilities"]
+    top_n: 30
+    min_market_cap: 100_000_000      # Greenblatt's own floor is higher than universe
+
+# ---------------------------------------------------------------------------
+# Scoring (spec §6.4). Composite = weighted mean of per-screen scores.
+# ---------------------------------------------------------------------------
+scoring:
+  weights:
+    graham: 1.0
+    buffett: 1.0
+    lynch: 1.0
+    greenblatt: 1.0
+  guru_ownership_bonus_per_holder: 2.0   # points added to composite per guru holding it
+  guru_ownership_bonus_cap: 20.0
+
+# ---------------------------------------------------------------------------
+# Light backtest (spec §7). Always labelled "approximate — not point-in-time".
+# ---------------------------------------------------------------------------
+backtest:
+  benchmark: "SPY"
+  horizons_months: [1, 3, 6, 12]
+  weighting: "equal"
+  max_basket_size: 50

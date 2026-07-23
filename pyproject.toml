@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "guru-screener"
+version = "0.1.0"
+description = "Personal desktop stock screener: legendary-investor philosophy screens + SEC 13F holdings overlay for US equities."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Deepak" }]
+dependencies = [
+    "flask>=3.0",
+    "pandas>=2.0",
+    "pyyaml>=6.0",
+    "requests>=2.31",
+    "pyarrow>=14.0",
+]
+
+[project.optional-dependencies]
+prices = ["yfinance>=0.2"]
+desktop = ["pywebview>=5.0"]
+dev = ["pytest>=7.0"]
+
+[project.scripts]
+guru-screener = "guru_screener.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["guru_screener*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

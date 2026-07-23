@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Settings · {{ cfg.app.name }}{% endblock %}
+{% block content %}
+<div class="page-head"><h1>Settings — tune the screens</h1></div>
+<p class="hint">These are the "approve or edit" thresholds from the spec. Changes are
+saved back to <code>config/settings.yaml</code> and applied immediately.</p>
+
+<form method="post">
+  <h2>Universe</h2>
+  <div class="settings-grid">
+    <label>Min market cap ($)
+      <input name="cfg.universe.min_market_cap" value="{{ cfg.universe.min_market_cap }}"></label>
+    <label>Min median $ volume
+      <input name="cfg.universe.min_median_dollar_volume" value="{{ cfg.universe.min_median_dollar_volume }}"></label>
+    <label>Include ADRs
+      <select name="cfg.universe.include_adrs">
+        <option value="true" {{ 'selected' if cfg.universe.include_adrs }}>true</option>
+        <option value="false" {{ 'selected' if not cfg.universe.include_adrs }}>false</option>
+      </select></label>
+  </div>
+
+  <h2>Graham — Defensive Value</h2>
+  <div class="settings-grid">
+    <label>Min revenue <input name="cfg.screens.graham.min_revenue" value="{{ cfg.screens.graham.min_revenue }}"></label>
+    <label>Min current ratio <input name="cfg.screens.graham.min_current_ratio" value="{{ cfg.screens.graham.min_current_ratio }}"></label>
+    <label>Max P/E <input name="cfg.screens.graham.max_pe" value="{{ cfg.screens.graham.max_pe }}"></label>
+    <label>Max P/B <input name="cfg.screens.graham.max_pb" value="{{ cfg.screens.graham.max_pb }}"></label>
+    <label>Max Graham ratio <input name="cfg.screens.graham.max_graham_ratio" value="{{ cfg.screens.graham.max_graham_ratio }}"></label>
+  </div>
+
+  <h2>Buffett — Quality / Moat</h2>
+  <div class="settings-grid">
+    <label>Min ROE <input name="cfg.screens.buffett.min_roe" value="{{ cfg.screens.buffett.min_roe }}"></label>
+    <label>Min interest coverage <input name="cfg.screens.buffett.min_interest_coverage" value="{{ cfg.screens.buffett.min_interest_coverage }}"></label>
+    <label>Max debt/equity <input name="cfg.screens.buffett.max_debt_to_equity" value="{{ cfg.screens.buffett.max_debt_to_equity }}"></label>
+  </div>
+
+  <h2>Lynch — GARP</h2>
+  <div class="settings-grid">
+    <label>Max PEG <input name="cfg.screens.lynch.max_peg" value="{{ cfg.screens.lynch.max_peg }}"></label>
+    <label>Fast-grower low <input name="cfg.screens.lynch.fast_grower_low" value="{{ cfg.screens.lynch.fast_grower_low }}"></label>
+    <label>Fast-grower high <input name="cfg.screens.lynch.fast_grower_high" value="{{ cfg.screens.lynch.fast_grower_high }}"></label>
+  </div>
+
+  <h2>Greenblatt — Magic Formula</h2>
+  <div class="settings-grid">
+    <label>Top N <input name="cfg.screens.greenblatt.top_n" value="{{ cfg.screens.greenblatt.top_n }}"></label>
+    <label>Min market cap <input name="cfg.screens.greenblatt.min_market_cap" value="{{ cfg.screens.greenblatt.min_market_cap }}"></label>
+  </div>
+
+  <button type="submit">Save settings</button>
+</form>
+{% endblock %}

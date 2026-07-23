@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Managers · {{ cfg.app.name }}{% endblock %}
+{% block content %}
+<div class="page-head"><h1>Guru roster</h1></div>
+<p class="hint">Each entry either codifies as a philosophy <b>screen</b>, contributes a
+13F <b>overlay</b> of what they actually own, or both. Overlay-only managers
+(Ackman, Einhorn, Burry) resist clean factor codification — their holdings are
+shown, not a screen.</p>
+<div class="table-wrap">
+<table class="grid">
+  <thead><tr><th>Investor</th><th>Vehicle</th><th>Philosophy</th>
+    <th>Screen</th><th>Overlay</th><th class="num">Positions</th></tr></thead>
+  <tbody>
+  {% for s in summary %}
+    <tr>
+      <td>{% if s.guru.cik %}<a href="{{ url_for('manager', key=s.guru.key) }}">
+          <b>{{ s.guru.name }}</b></a>{% else %}<b>{{ s.guru.name }}</b>{% endif %}</td>
+      <td class="muted">{{ s.guru.vehicle }}</td>
+      <td class="small">{{ s.guru.philosophy }}</td>
+      <td>{% if s.guru.has_screen %}<span class="chip {{ s.guru.screen_affinity }}">screen</span>{% else %}<span class="muted">—</span>{% endif %}</td>
+      <td>{% if s.guru.overlay_only %}<span class="tag">overlay-only</span>
+          {% elif s.guru.has_overlay %}<span class="tag ok">13F</span>
+          {% else %}<span class="muted">historical</span>{% endif %}</td>
+      <td class="num">{{ s.n_positions if s.n_positions else '' }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Backtest · {{ cfg.app.name }}{% endblock %}
+{% block content %}
+<div class="page-head"><h1>Light backtest</h1></div>
+<div class="warn-box">
+  <b>⚠ Approximate — NOT point-in-time.</b> Directional sanity-checking only.
+  Uses today's fundamentals (look-ahead bias), free price history has survivorship
+  bias, and 13F data is lagged. Not tradeable, audited performance.
+</div>
+
+<form method="post" class="inline bt-form">
+  <label>Screen:
+    <select name="screen">
+      {% for k in screen_keys %}
+        <option value="{{ k }}" {{ 'selected' if k == screen_key }}>{{ k|capitalize }}</option>
+      {% endfor %}
+    </select></label>
+  <label>As of (past date):
+    <input type="date" name="as_of" value="{{ as_of }}"></label>
+  <button type="submit">Run backtest</button>
+</form>
+
+{% if result %}
+<h2>Result — {{ screen_key|capitalize }} basket as of {{ result.as_of }}</h2>
+<p>Equal-weight basket of <b>{{ result.basket_size }}</b> names vs
+   <b>{{ result.benchmark }}</b>.</p>
+<table class="grid">
+  <thead><tr><th>Horizon</th><th class="num">Basket</th>
+    <th class="num">{{ result.benchmark }}</th><th class="num">Excess</th>
+    <th class="num">Priced</th></tr></thead>
+  <tbody>
+  {% for h, s in result.summary.items() %}
+    <tr>
+      <td>{{ h }} mo</td>
+      <td class="num">{{ pct(s.basket_return) }}</td>
+      <td class="num">{{ pct(s.benchmark_return) }}</td>
+      <td class="num {{ 'ok' if s.excess and s.excess > 0 else ('bad' if s.excess and s.excess < 0 else '') }}">
+        {{ pct(s.excess) }}</td>
+      <td class="num muted">{{ s.n_priced }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+<h3>Basket composition <span class="muted">(inspectable)</span></h3>
+<div class="chips">
+  {% for t in result.basket %}<span class="chip">{{ t }}</span>{% endfor %}
+</div>
+
+<details class="caveats"><summary>Caveats</summary>
+  <ul>{% for c in result.caveats %}<li>{{ c }}</li>{% endfor %}</ul>
+</details>
+{% endif %}
+{% endblock %}

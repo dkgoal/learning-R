@@ -10,6 +10,7 @@ the demo seeder instead; on the user's machine ``refresh_all`` pulls live data.
 """
 from __future__ import annotations
 
+from datetime import datetime, timedelta
 from typing import Any, Callable, Dict, List, Optional
 
 from .adapters.http import HttpClient
@@ -100,8 +101,16 @@ def refresh_prices(store: Store, prices: PriceService, cfg: Dict[str, Any],
 
 
 def refresh_holdings(store: Store, http: HttpClient, log: Progress,
-                     cusip_map: Optional[Dict[str, str]] = None) -> int:
-    adapter = SecHoldingsAdapter(http, cusip_map)
+                     cfg: Optional[Dict[str, Any]] = None) -> int:
+    from .cusip import CusipResolver, load_overrides
+    from .paths import ROOT, user_home, use_user_home
+    overrides_path = (user_home() if use_user_home() else ROOT) / "cusip_overrides.csv"
+    if not overrides_path.exists():
+        overrides_path = ROOT / "config" / "cusip_overrides.csv"
+    resolver = CusipResolver(store, load_overrides(overrides_path))
+    log(f"  CUSIP resolver: {len(resolver.name_index)} name keys, "
+        f"{len(resolver.overrides)} overrides, {len(resolver.cache)} cached.")
+    adapter = SecHoldingsAdapter(http, resolver)
     n = 0
     for guru in overlay_gurus():
         log(f"  13F: {guru.name} (CIK {guru.cik})...")
@@ -125,19 +134,55 @@ def refresh_holdings(store: Store, http: HttpClient, log: Progress,
     return n
 
 
+def _is_stale(store: Store, stage: str, ttl_days: float) -> bool:
+    """True if ``stage`` has never run or its last run is older than the TTL."""
+    ts = store.get_meta(f"last_refresh_{stage}")
+    if not ts:
+        return True
+    try:
+        last = datetime.fromisoformat(ts)
+    except ValueError:
+        return True
+    return datetime.now() - last >= timedelta(days=ttl_days)
+
+
+def _stamp(store: Store, stage: str) -> None:
+    store.set_meta(f"last_refresh_{stage}", datetime.now().isoformat(timespec="seconds"))
+
+
 def refresh_all(cfg: Dict[str, Any], log: Progress = _noop,
-                universe_limit: Optional[int] = None) -> Dict[str, int]:
-    """Full live refresh. Returns counts per stage."""
+                universe_limit: Optional[int] = None,
+                only_stale: bool = False) -> Dict[str, int]:
+    """Full live refresh. Returns counts per stage (``-1`` = skipped, still fresh).
+
+    With ``only_stale=True`` each stage runs only if its cache is older than the
+    per-source TTL in ``data.ttl`` (prices daily, fundamentals/holdings quarterly
+    by default) — this is what the scheduler uses to avoid needless fetching.
+    """
+    ttl = cfg.get("data", {}).get("ttl", {})
+    ttls = {
+        "securities": ttl.get("fundamentals_days", 90),
+        "fundamentals": ttl.get("fundamentals_days", 90),
+        "prices": ttl.get("prices_days", 1),
+        "holdings": ttl.get("holdings_days", 90),
+    }
     http, prices, cache = make_clients(cfg)
     store = open_store(cache)
+    counts: Dict[str, int] = {}
     try:
-        counts = {
-            "securities": refresh_universe(store, http, log, universe_limit),
-            "fundamentals": refresh_fundamentals(store, http, log),
-            "prices": refresh_prices(store, prices, cfg, log),
-            "holdings": refresh_holdings(store, http, log),
-        }
-        store.set_meta("last_refresh", "done")
+        def stage(name: str, fn) -> None:
+            if only_stale and not _is_stale(store, name, ttls[name]):
+                log(f"  {name}: fresh, skipping.")
+                counts[name] = -1
+                return
+            counts[name] = fn()
+            _stamp(store, name)
+
+        stage("securities", lambda: refresh_universe(store, http, log, universe_limit))
+        stage("fundamentals", lambda: refresh_fundamentals(store, http, log))
+        stage("prices", lambda: refresh_prices(store, prices, cfg, log))
+        stage("holdings", lambda: refresh_holdings(store, http, log, cfg))
+        store.set_meta("last_refresh", datetime.now().isoformat(timespec="seconds"))
         return counts
     finally:
         store.close()

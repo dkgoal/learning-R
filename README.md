@@ -37,10 +37,12 @@ Other commands:
 | `python -m guru_screener` | Launch desktop app (pywebview window; falls back to browser) |
 | `python -m guru_screener serve` | Run the web server only at `http://127.0.0.1:8765` |
 | `python -m guru_screener seed` | Populate the offline demo cache |
-| `python -m guru_screener refresh` | Live refresh from SEC EDGAR + price sources |
+| `python -m guru_screener refresh [--stale]` | Live refresh from SEC EDGAR + price sources (`--stale` = only sources past their TTL) |
+| `python -m guru_screener schedule [--interval S] [--once]` | Run stale-only refresh on a loop (keeps the cache current) |
+| `python -m guru_screener backup [--out PATH] [--restore PATH]` | Snapshot / restore the local cache |
 | `python -m guru_screener screen [--csv] [--top N]` | Print / export the screen to stdout |
 | `python -m guru_screener resolve NAME` | Look up a filer CIK on EDGAR (live) |
-| `pytest` | Run the test suite (uses the demo dataset) |
+| `pytest` | Run the test suite (28 tests; uses the demo dataset) |
 
 > **Note on this sandbox:** SEC egress is blocked here, so live `refresh` won't
 > reach `sec.gov` from the build environment. The demo seeder produces a full,
@@ -67,6 +69,68 @@ Other commands:
 
 ---
 
+## Production install (running it for real)
+
+This is a personal, local desktop app — "production" means a reliable install on
+your own machine on live data, not a server. Recommended path:
+
+**1. Live data.** Set a descriptive SEC `User-Agent` with your email in the
+config (`app.sec_user_agent`), verify the guru CIKs, then pull data:
+
+```bash
+python -m guru_screener resolve "Baupost"     # confirm each overlay-only CIK
+python -m guru_screener refresh               # first full pull
+```
+
+**2. Freeze a standalone app** (no Python/venv needed to run it):
+
+```bash
+./packaging/build.sh          # installs pyinstaller + pywebview, produces dist/guru-screener/
+./dist/guru-screener/guru-screener            # double-clickable desktop app
+```
+
+The frozen build reads its bundled defaults but stores **config + cache in
+`~/.guru-screener/`** (override with `GURU_HOME`), so the app itself stays
+read-only and your data/settings persist across upgrades.
+
+**3. Keep the cache current.** Either leave the built-in scheduler running:
+
+```bash
+python -m guru_screener schedule              # hourly stale-only checks
+```
+
+…or drive it from your OS scheduler (preferred for set-and-forget):
+
+```cron
+# crontab -e  — prices daily, SEC pulls only when a quarter ages out (TTL-gated)
+0 6 * * *  cd /path/to/app && ./dist/guru-screener/guru-screener refresh --stale
+```
+
+On macOS use a launchd agent; on Windows use Task Scheduler — same command.
+Refresh cadence is governed by `data.ttl` (prices 1 day, fundamentals/13F 90
+days); `--stale` skips anything still within its TTL.
+
+**4. Pin deps and back up.** Install from the lockfile for reproducibility, and
+snapshot the cache before big refreshes:
+
+```bash
+pip install -r requirements.lock.txt
+python -m guru_screener backup                # -> guru-cache-backup-<timestamp>.zip
+python -m guru_screener backup --restore <archive.zip>
+```
+
+### CUSIP → ticker resolution (13F data quality)
+
+13F filings identify positions by CUSIP, and there is no clean free CUSIP→ticker
+source — this is the overlay's main limitation. The app resolves best-effort:
+**overrides file → cached map → issuer-name match** against the SEC universe.
+Unresolved positions show by issuer name without an ownership badge. Fill the
+gaps that matter to you in `config/cusip_overrides.csv` (`cusip,ticker`); find a
+position's CUSIP in the manager's 13F on EDGAR or in the app's stock-detail
+overlay table.
+
+---
+
 ## Architecture (spec §9)
 
 ```
@@ -79,8 +143,10 @@ data provider can be replaced without touching screening logic.
 ```
 guru_screener/
   config.py            settings load/save
+  paths.py             dev vs. installed/frozen path resolution (writable user home)
   models.py            typed structures passed between layers
-  db.py                SQLite store (metadata, fundamentals, holdings, saved runs)
+  db.py                SQLite store (metadata, fundamentals, holdings, cusip map, runs)
+  cusip.py             CUSIP -> ticker resolver (overrides / cache / name-match)
   adapters/
     base.py            PriceAdapter / FundamentalsAdapter / HoldingsAdapter interfaces
     sec_edgar.py       companyfacts (XBRL) fundamentals + 13F-HR parsing + CIK map
@@ -90,12 +156,16 @@ guru_screener/
   scoring.py           composite scorecard + ranking
   holdings/            roster (with CIKs) + overlay / QoQ diff
   pipeline.py          orchestration: cache -> market data -> screens -> scorecard
-  refresh.py           the ONLY module that hits the network (live ingestion)
+  refresh.py           the ONLY module that hits the network (TTL-gated ingestion)
+  scheduler.py         stale-only auto-refresh loop
+  backup.py            zip / restore the local cache
   backtest.py          light, caveated backtest
   export.py            CSV
   web/                 Flask app + templates + static (data-dense tables)
   demo/seed.py         offline synthetic dataset (30 well-known tickers)
 config/settings.yaml   all tunable thresholds + open-question decisions
+config/cusip_overrides.csv   manual CUSIP -> ticker overrides
+packaging/             PyInstaller spec + build script for a standalone app
 ```
 
 **Storage (spec §8):** SQLite for metadata/fundamentals/holdings/saved runs;

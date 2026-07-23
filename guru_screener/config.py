@@ -8,19 +8,35 @@ from __future__ import annotations
 
 import copy
 import os
+import shutil
 from pathlib import Path
 from typing import Any, Dict
 
 import yaml
 
-# Project root = parent of the package directory.
-ROOT = Path(__file__).resolve().parent.parent
+from .paths import ROOT, bundled_config_template, use_user_home, user_home
+
 DEFAULT_CONFIG_PATH = ROOT / "config" / "settings.yaml"
 
 
 def config_path() -> Path:
-    """Resolve the active config path (env override for tests/alt profiles)."""
-    return Path(os.environ.get("GURU_CONFIG", DEFAULT_CONFIG_PATH))
+    """Resolve the active config path.
+
+    Precedence: ``GURU_CONFIG`` env override, then a writable per-user copy for
+    frozen/installed builds (seeded from the bundled template on first run),
+    then the in-repo config for development.
+    """
+    override = os.environ.get("GURU_CONFIG")
+    if override:
+        return Path(override)
+    if use_user_home():
+        target = user_home() / "settings.yaml"
+        if not target.exists():
+            template = bundled_config_template()
+            if template.exists():
+                shutil.copyfile(template, target)
+        return target
+    return DEFAULT_CONFIG_PATH
 
 
 def load_config(path: Path | str | None = None) -> Dict[str, Any]:
@@ -39,11 +55,17 @@ def save_config(cfg: Dict[str, Any], path: Path | str | None = None) -> None:
 
 
 def cache_dir(cfg: Dict[str, Any]) -> Path:
-    """Absolute path to the local cache directory, created on demand."""
+    """Absolute path to the local cache directory, created on demand.
+
+    An absolute ``data.cache_dir`` is used verbatim (tests set this). A relative
+    value resolves against the per-user home for installed/frozen builds, else
+    against the repo root in development.
+    """
     raw = cfg.get("data", {}).get("cache_dir", ".cache")
     p = Path(raw)
     if not p.is_absolute():
-        p = ROOT / p
+        base = user_home() if use_user_home() else ROOT
+        p = base / p
     p.mkdir(parents=True, exist_ok=True)
     return p
 

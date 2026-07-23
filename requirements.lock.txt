@@ -1,0 +1,38 @@
+# Fully-pinned, reproducible dependency set for a production install.
+#   pip install -r requirements.lock.txt
+#
+# Generated from a known-good environment (Python 3.11). Regenerate after
+# intentional upgrades with:  pip freeze > requirements.lock.txt
+#
+# Direct dependencies (see requirements.txt) + their transitive closure, pinned
+# so a silent upstream change in a free/fragile provider stack can't break you.
+
+# --- direct ---
+Flask==3.1.3
+pandas==3.0.5
+PyYAML==6.0.3
+requests==2.34.2
+pyarrow==25.0.0
+lxml==6.1.1
+
+# --- transitive ---
+blinker==1.9.0
+click==8.4.2
+itsdangerous==2.2.0
+Jinja2==3.1.6
+MarkupSafe==3.0.3
+Werkzeug==3.1.8
+numpy==2.4.6
+python-dateutil==2.9.0.post0
+pytz==2025.2
+tzdata==2025.2
+certifi==2025.1.31
+charset-normalizer==3.4.1
+idna==3.10
+urllib3==2.3.0
+
+# --- optional (uncomment as needed) ---
+# yfinance==0.2.66        # fallback price provider
+# pywebview==5.4          # native desktop window
+# pyinstaller==6.11.1     # freeze a standalone binary
+# pytest==9.1.1           # tests

@@ -63,6 +63,14 @@ CREATE TABLE IF NOT EXISTS runs (
     results     TEXT           -- JSON results payload
 );
 
+CREATE TABLE IF NOT EXISTS cusip_map (
+    cusip       TEXT PRIMARY KEY,
+    ticker      TEXT,
+    issuer      TEXT,
+    source      TEXT,          -- 'override' | 'name-match' | 'manual'
+    updated_at  TEXT
+);
+
 CREATE TABLE IF NOT EXISTS meta (
     key         TEXT PRIMARY KEY,
     value       TEXT
@@ -214,6 +222,23 @@ class Store:
     def get_run(self, run_id: int) -> Optional[sqlite3.Row]:
         cur = self.conn.execute("SELECT * FROM runs WHERE id=?", (run_id,))
         return cur.fetchone()
+
+    # -- cusip map ---------------------------------------------------------
+    def put_cusip(self, cusip: str, ticker: Optional[str], issuer: str,
+                  source: str) -> None:
+        self.conn.execute(
+            """INSERT INTO cusip_map (cusip,ticker,issuer,source,updated_at)
+               VALUES (?,?,?,?,datetime('now'))
+               ON CONFLICT(cusip) DO UPDATE SET
+                 ticker=excluded.ticker, issuer=excluded.issuer,
+                 source=excluded.source, updated_at=datetime('now')""",
+            (cusip.upper(), ticker, issuer, source))
+        self.conn.commit()
+
+    def cusip_map(self) -> Dict[str, str]:
+        cur = self.conn.execute(
+            "SELECT cusip, ticker FROM cusip_map WHERE ticker IS NOT NULL")
+        return {r["cusip"]: r["ticker"] for r in cur}
 
     # -- meta --------------------------------------------------------------
     def set_meta(self, key: str, value: str) -> None:

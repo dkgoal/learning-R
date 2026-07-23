@@ -21,6 +21,7 @@ dependencies = [
 [project.optional-dependencies]
 prices = ["yfinance>=0.2"]
 desktop = ["pywebview>=5.0"]
+build = ["pyinstaller>=6.0", "pywebview>=5.0"]
 dev = ["pytest>=7.0"]
 
 [project.scripts]

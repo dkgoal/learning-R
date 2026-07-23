@@ -1,0 +1,10 @@
+# Manual CUSIP -> ticker overrides for 13F resolution.
+# Highest-priority source: use this for positions the name-matcher gets wrong or
+# can't resolve (ADRs, recent IPOs, unusual issuer names). Find a CUSIP in the
+# manager's 13F on EDGAR, or in the app's stock detail's overlay table.
+#
+# Format: cusip,ticker  (header row required; lines starting with # are ignored)
+cusip,ticker
+037833100,AAPL
+594918104,MSFT
+02079K305,GOOGL

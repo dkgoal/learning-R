@@ -201,11 +201,24 @@ def _parse_information_table(xml_text: str) -> List[Dict[str, Any]]:
 
 
 class SecHoldingsAdapter(HoldingsAdapter):
-    """Fetches and parses 13F-HR filings for a manager CIK."""
+    """Fetches and parses 13F-HR filings for a manager CIK.
 
-    def __init__(self, http: HttpClient, cusip_to_ticker: Optional[Dict[str, str]] = None):
+    ``resolver`` may be either an object with ``.resolve(cusip, issuer)`` (see
+    :class:`guru_screener.cusip.CusipResolver`) or a plain ``{cusip: ticker}``
+    dict; either is used to attach tickers to holdings.
+    """
+
+    def __init__(self, http: HttpClient, resolver: Any = None):
         self.http = http
-        self.cusip_map = cusip_to_ticker or {}
+        self.resolver = resolver
+
+    def _ticker_for(self, cusip: str, issuer: str) -> Optional[str]:
+        r = self.resolver
+        if r is None:
+            return None
+        if hasattr(r, "resolve"):
+            return r.resolve(cusip, issuer)
+        return r.get(cusip)  # dict-like
 
     def _submissions(self, cik: str) -> Dict[str, Any]:
         return self.http.get_json(SUBMISSIONS_URL.format(cik=_pad_cik(cik)))
@@ -253,7 +266,7 @@ class SecHoldingsAdapter(HoldingsAdapter):
         for r in raw:
             holdings.append(Holding(
                 manager=manager, cik=str(cik),
-                ticker=self.cusip_map.get(r["cusip"]),
+                ticker=self._ticker_for(r["cusip"], r.get("issuer", "")),
                 cusip=r["cusip"], issuer=r.get("issuer", ""),
                 shares=r.get("shares", 0.0),
                 # 13F values historically reported in $ thousands.

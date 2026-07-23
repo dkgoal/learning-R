@@ -79,16 +79,42 @@ def cmd_refresh(args) -> int:
     from .refresh import refresh_all
     cfg = load_config()
     print("Live refresh from SEC EDGAR + price sources...")
-    print(f"(Set app.sec_user_agent in config/settings.yaml first — currently: "
+    print(f"(Set app.sec_user_agent in config first — currently: "
           f"{cfg['app']['sec_user_agent']})")
     try:
         counts = refresh_all(cfg, log=lambda m: print(m),
-                             universe_limit=args.limit)
-        print("Done:", counts)
+                             universe_limit=args.limit, only_stale=args.stale)
+        print("Done:", counts, "(-1 = skipped, still fresh)" if args.stale else "")
         return 0
     except Exception as exc:
         print(f"Refresh failed: {exc}", file=sys.stderr)
         return 1
+
+
+def cmd_schedule(args) -> int:
+    from .scheduler import run_forever, run_once
+    cfg = load_config()
+    if args.once:
+        try:
+            run_once(cfg)
+            return 0
+        except Exception as exc:
+            print(f"Refresh pass failed: {exc}", file=sys.stderr)
+            return 1
+    run_forever(cfg, interval_seconds=args.interval)
+    return 0
+
+
+def cmd_backup(args) -> int:
+    from .backup import backup_cache, restore_cache
+    cfg = load_config()
+    if args.restore:
+        dst = restore_cache(cfg, args.restore)
+        print(f"Restored cache from {args.restore} into {dst}")
+    else:
+        path = backup_cache(cfg, args.out)
+        print(f"Cache backed up to {path}")
+    return 0
 
 
 def cmd_resolve(args) -> int:
@@ -163,7 +189,21 @@ def build_parser() -> argparse.ArgumentParser:
     r = sub.add_parser("refresh", help="live refresh from data sources")
     r.add_argument("--limit", type=int, default=None,
                    help="cap universe size (for a quick partial refresh)")
+    r.add_argument("--stale", action="store_true",
+                   help="only refresh sources older than their TTL")
     r.set_defaults(func=cmd_refresh)
+
+    sh = sub.add_parser("schedule", help="run stale-only refresh on a loop")
+    sh.add_argument("--interval", type=int, default=3600,
+                    help="seconds between checks (default 3600)")
+    sh.add_argument("--once", action="store_true",
+                    help="run a single stale-only pass and exit")
+    sh.set_defaults(func=cmd_schedule)
+
+    bk = sub.add_parser("backup", help="zip (or restore) the local cache")
+    bk.add_argument("--out", default=None, help="archive path to write")
+    bk.add_argument("--restore", default=None, help="archive path to restore from")
+    bk.set_defaults(func=cmd_backup)
 
     rs = sub.add_parser("resolve", help="look up a filer CIK on EDGAR")
     rs.add_argument("name")

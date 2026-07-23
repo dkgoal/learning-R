@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ cfg.app.name }}{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><a href="{{ url_for('index') }}">📈 {{ cfg.app.name }}</a></div>
+  <nav>
+    <a href="{{ url_for('index') }}">Screener</a>
+    <a href="{{ url_for('managers') }}">Managers</a>
+    <a href="{{ url_for('backtest') }}">Backtest</a>
+    <a href="{{ url_for('settings') }}">Settings</a>
+    <a href="{{ url_for('export_csv') }}">⬇ CSV</a>
+  </nav>
+</header>
+<div class="disclaimer">⚠ {{ cfg.app.disclaimer }}</div>
+<main>
+  {% block content %}{% endblock %}
+</main>
+<footer>Guru Stock Screener v{{ version if version else '0.1.0' }} · local-first · free public data</footer>
+</body>
+</html>

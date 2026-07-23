@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head">
+  <h1>Screener</h1>
+  <div class="meta">
+    {% if demo %}<span class="badge demo">DEMO DATA</span>{% endif %}
+    {% if quarter %}<span class="badge">13F quarter: {{ quarter }}</span>{% endif %}
+    <span class="muted">{{ rows|length }} names</span>
+  </div>
+</div>
+
+<p class="hint">Composite = weighted mean of philosophy scores + guru-ownership bonus.
+The gap is signal: a name that <em>passes</em> Buffett's screen but that Buffett
+<em>doesn't own</em> is a different idea than one he holds.</p>
+
+<div class="controls">
+  <input type="text" id="filter" placeholder="Filter by ticker / name / sector…"
+         onkeyup="filterRows()">
+  <label><input type="checkbox" id="onlyPass" onchange="filterRows()">
+    passes ≥1 screen</label>
+  <label><input type="checkbox" id="onlyOwned" onchange="filterRows()">
+    held by a guru</label>
+</div>
+
+<div class="table-wrap">
+<table id="screen" class="grid">
+  <thead>
+    <tr>
+      <th onclick="sortBy('ticker',false)">Ticker</th>
+      <th>Name</th>
+      <th>Sector</th>
+      {% for k in screen_keys %}
+        <th class="num" onclick="sortBy('{{k}}',true)" title="{{k}} score">{{ k[:3]|capitalize }}</th>
+      {% endfor %}
+      <th class="num" onclick="sortBy('composite',true)">Composite</th>
+      <th>Passes</th>
+      <th class="num" onclick="sortBy('gurus',true)">Gurus</th>
+      <th>Held by</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for r in rows %}
+    <tr data-ticker="{{ r.ticker }}" data-name="{{ r.name|lower }}"
+        data-sector="{{ r.sector|lower }}" data-composite="{{ r.composite }}"
+        data-gurus="{{ r.n_gurus }}" data-passes="{{ r.n_passes }}"
+        {% for k in screen_keys %}data-{{k}}="{{ r.get(k~'_score', 0) }}"{% endfor %}>
+      <td><a href="{{ url_for('stock', ticker=r.ticker) }}"><b>{{ r.ticker }}</b></a>
+        {% if r.is_adr %}<span class="tag adr">ADR</span>{% endif %}</td>
+      <td class="name">{{ r.name }}</td>
+      <td class="muted">{{ r.sector }}</td>
+      {% for k in screen_keys %}
+        {% set sc = r.get(k~'_score') %}
+        <td class="num score {{ 'pass' if r.get(k~'_pass') else '' }}">
+          {{ '%.0f'|format(sc) if sc is not none else '—' }}</td>
+      {% endfor %}
+      <td class="num comp">{{ '%.1f'|format(r.composite) }}</td>
+      <td>{% for p in r.passes %}<span class="chip {{p}}">{{ p[:3] }}</span>{% endfor %}</td>
+      <td class="num">{{ r.n_gurus if r.n_gurus else '' }}</td>
+      <td class="held">
+        {% for g in r.guru_holders %}<span class="chip owner
+          {{ 'newbuy' if g in r.new_buy_by else '' }}"
+          title="{{ 'NEW BUY' if g in r.new_buy_by else 'holds' }}">{{ g.split()[-1] }}</span>{% endfor %}
+      </td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+{% endblock %}

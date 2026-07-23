@@ -1,0 +1,16 @@
+# Guru Stock Screener — runtime dependencies
+# Core data + web (required)
+flask>=3.0
+pandas>=2.0
+pyyaml>=6.0
+requests>=2.31
+pyarrow>=14.0        # parquet price cache (falls back to SQLite if missing)
+
+# Optional data providers (imported lazily; app degrades gracefully without them)
+# yfinance>=0.2      # EOD price adapter (fallback / alternative to Stooq)
+
+# Optional desktop shell (app also runs as a plain browser app without it)
+# pywebview>=5.0
+
+# Dev / test
+pytest>=7.0

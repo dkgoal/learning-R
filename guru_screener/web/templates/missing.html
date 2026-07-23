@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head"><h1>{{ ticker }} — not in cache</h1></div>
+<p class="muted">No cached fundamentals for {{ ticker }}. Run a refresh or seed the
+demo dataset.</p>
+<a href="{{ url_for('index') }}">← back to screener</a>
+{% endblock %}

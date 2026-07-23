@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}{{ ticker }} · {{ cfg.app.name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{{ ticker }} <span class="muted">{{ sec['name'] }}</span>
+    {% if sec['is_adr'] %}<span class="tag adr">ADR</span>{% endif %}</h1>
+  <a href="{{ url_for('index') }}" class="muted">← back to screener</a>
+</div>
+
+<div class="cards">
+  <div class="card"><div class="k">Price</div><div class="v">{{ '%.2f'|format(m.price) if m.price else '—' }}</div></div>
+  <div class="card"><div class="k">P/E</div><div class="v">{{ '%.1f'|format(m.pe) if m.pe else '—' }}</div></div>
+  <div class="card"><div class="k">P/B</div><div class="v">{{ '%.2f'|format(m.pb) if m.pb else '—' }}</div></div>
+  <div class="card"><div class="k">PEG</div><div class="v">{{ '%.2f'|format(m.peg) if m.peg else '—' }}</div></div>
+  <div class="card"><div class="k">FCF yield</div><div class="v">{{ '%.1f%%'|format(m.fcf_yield*100) if m.fcf_yield else '—' }}</div></div>
+  <div class="card"><div class="k">EBIT/EV</div><div class="v">{{ '%.1f%%'|format(m.earnings_yield*100) if m.earnings_yield else '—' }}</div></div>
+  <div class="card"><div class="k">Sector</div><div class="v small">{{ sec['sector'] }}</div></div>
+</div>
+
+<h2>Philosophy scorecard</h2>
+<div class="screens">
+{% for key, res in results.items() %}
+  <div class="screen-block {{ 'passed' if res.passed else 'failed' }}">
+    <div class="screen-head">
+      <span class="screen-name">{{ key|capitalize }}</span>
+      <span class="screen-score">{{ '%.0f'|format(res.score) }}/100</span>
+      <span class="pill {{ 'pass' if res.passed else 'fail' }}">
+        {{ 'PASS' if res.passed else 'FAIL' }}</span>
+      {% if res.rank %}<span class="muted">rank {{ res.rank }}</span>{% endif %}
+    </div>
+    <table class="criteria">
+      {% for c in res.criteria %}
+      <tr class="{{ 'ok' if c.passed else ('bad' if c.passed == false else 'na') }}">
+        <td class="mark">{{ '✓' if c.passed else ('✗' if c.passed == false else '·') }}</td>
+        <td>{{ c.name }}</td>
+        <td class="cval">{{ fmt(c.value) }}</td>
+        <td class="cthr muted">{{ fmt(c.threshold) }}</td>
+        <td class="cnote muted">{{ c.note }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+{% endfor %}
+</div>
+
+<h2>13F overlay — who owns it</h2>
+{% if overlay.details %}
+  <p>Held by <b>{{ overlay.holders|length }}</b> guru(s)
+     {% if overlay.new_buy_by %}· <span class="chip owner newbuy">NEW BUY</span>
+     {{ overlay.new_buy_by|join(', ') }}{% endif %}
+     <span class="muted">(quarter {{ overlay.quarter }})</span></p>
+  <table class="grid">
+    <thead><tr><th>Manager</th><th class="num">Shares</th><th class="num">Value</th>
+      <th class="num">% portfolio</th><th>Filing date</th></tr></thead>
+    <tbody>
+    {% for d in overlay.details %}
+      <tr><td>{{ d.manager }}</td>
+        <td class="num">{{ '{:,.0f}'.format(d.shares) }}</td>
+        <td class="num">${{ '{:,.0f}'.format(d.value) }}</td>
+        <td class="num">{{ d.pct_portfolio }}%</td>
+        <td class="muted">{{ d.filing_date }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+{% else %}
+  <p class="muted">No roster manager reports holding {{ ticker }} this quarter.
+    If it passes a screen above, that's the gap signal: rules-match without ownership.</p>
+{% endif %}
+{% endblock %}

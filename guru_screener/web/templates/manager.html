@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}{{ view.guru }} · {{ cfg.app.name }}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h1>{{ view.guru }} <span class="muted">{{ view.vehicle }}</span></h1>
+  <a href="{{ url_for('managers') }}" class="muted">← all managers</a>
+</div>
+{% if view.quarter %}
+<p class="hint">{{ view.philosophy }} ·
+  <b>{{ view.n_positions }}</b> positions ·
+  quarter <b>{{ view.quarter }}</b> ·
+  filed {{ view.filing_date }}
+  <span class="muted">(~45-day 13F lag)</span></p>
+
+{% if view.quarters|length > 1 %}
+<form method="get" class="inline">
+  <label>Quarter:
+    <select name="quarter" onchange="this.form.submit()">
+      {% for q in view.quarters %}
+        <option value="{{ q }}" {{ 'selected' if q == view.quarter }}>{{ q }}</option>
+      {% endfor %}
+    </select></label>
+</form>
+{% endif %}
+
+<div class="table-wrap">
+<table class="grid">
+  <thead><tr><th>Ticker</th><th>Issuer</th><th class="num">Shares</th>
+    <th class="num">Value</th><th class="num">% port.</th><th>QoQ</th></tr></thead>
+  <tbody>
+  {% for h in view.holdings %}
+    <tr>
+      <td>{% if h.ticker %}<a href="{{ url_for('stock', ticker=h.ticker) }}">
+          <b>{{ h.ticker }}</b></a>{% else %}<span class="muted">—</span>{% endif %}</td>
+      <td class="name">{{ h.issuer }}</td>
+      <td class="num">{{ '{:,.0f}'.format(h.shares) }}</td>
+      <td class="num">${{ '{:,.0f}'.format(h.value) }}</td>
+      <td class="num">{{ h.pct_portfolio }}%</td>
+      <td><span class="action {{ h.action }}">{{ h.action }}</span></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<p class="muted">No 13F holdings cached for this manager. Run a live refresh, or
+this manager may be historical/screen-only.</p>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,31 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`golden ranking (§10 snapshot; bump scorer_version to change) > matches the recorded shortlist for a fixed profile 1`] = `
+[
+  {
+    "id": 10,
+    "match": 82,
+    "trim": "xDrive50",
+  },
+  {
+    "id": 7,
+    "match": 59,
+    "trim": "xDrive30",
+  },
+  {
+    "id": 11,
+    "match": 48,
+    "trim": "xDrive40i",
+  },
+  {
+    "id": 8,
+    "match": 25,
+    "trim": "xDrive40i",
+  },
+  {
+    "id": 9,
+    "match": 22,
+    "trim": "xDrive50e",
+  },
+]
+`;

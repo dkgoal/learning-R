@@ -41,7 +41,7 @@ Other commands:
 | Command | What it does |
 |---|---|
 | `python -m guru_screener` | Launch desktop app (pywebview window; falls back to browser) |
-| `python -m guru_screener serve` | Run the web server only at `http://127.0.0.1:8765` |
+| `python -m guru_screener serve [--host H] [--port P]` | Run the web server only (default `http://127.0.0.1:8765`; `--host 0.0.0.0` exposes it to your LAN, e.g. an iPad) |
 | `python -m guru_screener seed` | Populate the offline demo cache |
 | `python -m guru_screener refresh [--stale]` | Live refresh from SEC EDGAR + price sources (`--stale` = only sources past their TTL) |
 | `python -m guru_screener schedule [--interval S] [--once]` | Run stale-only refresh on a loop (keeps the cache current) |

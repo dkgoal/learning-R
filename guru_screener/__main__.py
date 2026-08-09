@@ -27,24 +27,53 @@ HOST = "127.0.0.1"
 PORT = 8765
 
 
-def _serve_background(app) -> "object":
-    server = make_server(HOST, PORT, app)
+def _serve_background(app, host: str = HOST, port: int = PORT) -> "object":
+    server = make_server(host, port, app)
     t = threading.Thread(target=server.serve_forever, daemon=True)
     t.start()
     return server
 
 
+def _port_available(host: str, port: int) -> bool:
+    """Pre-flight check so we can print a helpful message before Flask aborts."""
+    import socket
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        try:
+            s.bind((host, port))
+            return True
+        except OSError:
+            return False
+
+
 def cmd_serve(args) -> int:
+    host, port = args.host, args.port
+    if not _port_available(host, port):
+        print(f"Port {port} is already in use (another server still running?).\n"
+              f"Start on a different port, e.g.:\n"
+              f"    python -m guru_screener serve --port {port + 1}",
+              file=sys.stderr)
+        return 1
     app = create_app(load_config())
-    print(f"Guru Stock Screener running at http://{HOST}:{PORT}  (Ctrl-C to stop)")
-    app.run(host=HOST, port=PORT, debug=args.debug)
+    shown = host if host != "0.0.0.0" else "<this-machine-ip>"
+    print(f"Guru Stock Screener running at http://{shown}:{port}  (Ctrl-C to stop)")
+    if host == "0.0.0.0":
+        print("  Bound to all interfaces — reachable from your LAN (e.g. an iPad).")
+        print("  The app has no login: keep it on a trusted network, never port-forward it.")
+    app.run(host=host, port=port, debug=args.debug)
     return 0
 
 
 def cmd_desktop(args) -> int:
     app = create_app(load_config())
-    server = _serve_background(app)
-    url = f"http://{HOST}:{PORT}"
+    host, port = getattr(args, "host", HOST), getattr(args, "port", PORT)
+    try:
+        server = _serve_background(app, host, port)
+    except OSError as exc:
+        print(f"Could not start server on {host}:{port} — {exc}.\n"
+              f"Try:  python -m guru_screener desktop --port {port + 1}",
+              file=sys.stderr)
+        return 1
+    url = f"http://{host}:{port}"
     time.sleep(0.4)
     try:
         import webview  # pywebview, optional
@@ -177,9 +206,15 @@ def build_parser() -> argparse.ArgumentParser:
     sub = p.add_subparsers(dest="cmd")
 
     d = sub.add_parser("desktop", help="launch desktop app (default)")
+    d.add_argument("--host", default=HOST, help="bind address (default 127.0.0.1)")
+    d.add_argument("--port", type=int, default=PORT, help="port (default 8765)")
     d.set_defaults(func=cmd_desktop)
 
     s = sub.add_parser("serve", help="run web server only")
+    s.add_argument("--host", default=HOST,
+                   help="bind address; use 0.0.0.0 to reach it from other "
+                        "devices on your LAN (e.g. an iPad). Default 127.0.0.1.")
+    s.add_argument("--port", type=int, default=PORT, help="port (default 8765)")
     s.add_argument("--debug", action="store_true")
     s.set_defaults(func=cmd_serve)
 

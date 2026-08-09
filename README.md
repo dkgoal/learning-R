@@ -14,6 +14,12 @@ equities **two ways at once**:
 Implements the requirements spec v0.1. Personal use only — **not investment
 advice**.
 
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/dkgoal/learning-R/blob/claude/guru-stock-screener-3gn684/notebooks/guru_screener_colab.ipynb)
+
+**No install? Run it in your browser** (works on iPad too): tap the badge above
+to open `notebooks/guru_screener_colab.ipynb` in Google Colab, then
+`Runtime → Run all`. See [Run in Google Colab](#run-in-google-colab-no-install).
+
 ---
 
 ## Quick start
@@ -47,6 +53,27 @@ Other commands:
 > **Note on this sandbox:** SEC egress is blocked here, so live `refresh` won't
 > reach `sec.gov` from the build environment. The demo seeder produces a full,
 > working dataset offline; live refresh works on your own machine.
+
+---
+
+## Run in Google Colab (no install)
+
+The easiest way to use the app with **no local setup** — and the simplest path
+on an **iPad**, since Colab runs in the browser and (unlike an iPad on its own)
+can pull live SEC data.
+
+1. Open **[`notebooks/guru_screener_colab.ipynb`](https://colab.research.google.com/github/dkgoal/learning-R/blob/claude/guru-stock-screener-3gn684/notebooks/guru_screener_colab.ipynb)** in Colab (the badge at the top, or *File → Open notebook → GitHub* and paste this repo).
+2. `Runtime → Run all`. The notebook clones the repo, installs deps, seeds demo
+   data, and embeds the web UI right in the notebook.
+
+Notes:
+- Colab proxies the port to **your** authenticated session only, so it's safe
+  without a login.
+- Colab VMs are ephemeral (cache wiped on disconnect). The notebook has an
+  optional cell to persist config + cache to **Google Drive** via `GURU_HOME`,
+  so live data survives across sessions.
+- For live data, set `app.sec_user_agent` in `config/settings.yaml` and switch
+  the notebook's `seed` line to `refresh`.
 
 ---
 

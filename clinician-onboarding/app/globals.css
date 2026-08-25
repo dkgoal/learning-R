@@ -1,0 +1,17 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-surface text-ink antialiased;
+  }
+  /* Tabular figures keep day counts and dollar columns aligned in the tables,
+     which is most of what this application shows. */
+  .nums {
+    font-variant-numeric: tabular-nums;
+  }
+}

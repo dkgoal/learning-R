@@ -18,6 +18,33 @@ npm run typecheck
 npm run build
 ```
 
+## Hosting
+
+Every page prerenders at build time — no API routes, no server actions, no
+runtime data reads — so `npm run build` emits a folder of plain HTML in `out/`
+(20 pages, ~4.6 MB) that any static host will serve. There is no server to run
+and nothing to pay for.
+
+**GitHub Pages** (already wired up). `.github/workflows/deploy-clinician-onboarding.yml`
+builds, typechecks, tests and publishes on every push. Enable it once under
+**Settings → Pages → Source → GitHub Actions**; the site then lands at
+`https://<user>.github.io/<repo>/`. The workflow sets `NEXT_PUBLIC_BASE_PATH`
+because Pages serves project sites from a subpath.
+
+**Vercel / Netlify / Cloudflare Pages.** Point at this repo, set the root
+directory to `clinician-onboarding`, and accept the detected defaults. Leave
+`NEXT_PUBLIC_BASE_PATH` unset — these serve from the domain root.
+
+**Anywhere else** — S3, nginx, a shared drive:
+
+```bash
+npm run build && npx serve out    # or copy out/ wherever you like
+```
+
+Not Google Colab: it is an ephemeral Python notebook runtime, so hosting a web
+app there means installing Node, running a server in a cell and tunnelling it
+out, and it all disappears when the runtime disconnects.
+
 ## What is here
 
 Next.js 15 (App Router, React 19, TypeScript, Tailwind), fully statically

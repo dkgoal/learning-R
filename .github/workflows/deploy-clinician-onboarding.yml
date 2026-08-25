@@ -1,0 +1,61 @@
+# Publishes the clinician onboarding app to GitHub Pages.
+#
+# The app is a static export, so this builds it and uploads the `out/` folder —
+# there is no server to run. Enable it once under Settings → Pages → Source →
+# "GitHub Actions"; after that every push to the branches below redeploys.
+name: Deploy clinician onboarding
+
+on:
+  push:
+    branches: [master, claude/app-build-from-doc-p82ved]
+    paths: ["clinician-onboarding/**", ".github/workflows/deploy-clinician-onboarding.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Let a running deploy finish rather than cancelling it mid-publish.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: clinician-onboarding
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: clinician-onboarding/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+        env:
+          # The uploaded out/ folder becomes the site root, so the base path is
+          # just the repo name — not the subdirectory the app lives in.
+          NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
+      # Pages' upload action does not run Jekyll, but this keeps the underscore-
+      # prefixed _next/ directory safe under any other static host too.
+      - run: touch out/.nojekyll
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: clinician-onboarding/out
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
